@@ -1,0 +1,314 @@
+openapi: 3.1.0
+info:
+  title: Wedding Hall Booking API
+  version: 1.0.0
+  description: >
+    Contract for the wedding hall booking website. In the Next.js App Router
+    implementation, read endpoints are server components / route handlers and
+    mutations are server actions; this OpenAPI document is the logical contract
+    (shapes, auth, status codes) those implementations MUST satisfy. Availability
+    is derived ONLY from APPROVED bookings (Constitution Principle I). Admin-only
+    operations are marked and MUST be enforced server-side (Principle II).
+
+servers:
+  - url: /
+
+tags:
+  - name: auth
+  - name: halls
+  - name: availability
+  - name: bookings
+  - name: admin
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new account (always role USER)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                name: { type: string }
+      responses:
+        '201': { description: Account created }
+        '400': { description: Validation error }
+        '409': { description: Email already in use (FR-013) }
+
+  /api/auth/[...nextauth]:
+    post:
+      tags: [auth]
+      summary: NextAuth Credentials sign-in / sign-out (email + password)
+      responses:
+        '200': { description: Session established or cleared }
+        '401': { description: Invalid credentials }
+
+  /halls:
+    get:
+      tags: [halls]
+      summary: List all halls (public, FR-001)
+      parameters:
+        - name: featured
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: When true, returns only featured halls (home page uses limit 6)
+      responses:
+        '200':
+          description: Hall list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Hall' }
+
+  /halls/{hallId}:
+    get:
+      tags: [halls]
+      summary: Hall detail (public, FR-001)
+      parameters:
+        - { name: hallId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Hall
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Hall' }
+        '404': { description: Not found }
+
+  /halls/{hallId}/availability:
+    get:
+      tags: [availability]
+      summary: Availability for a hall across a date range (public, FR-002/FR-005)
+      description: >
+        Returns DAY/NIGHT status per date, derived solely from APPROVED bookings.
+        Range is clamped to today .. today+12 months (FR-008).
+      parameters:
+        - { name: hallId, in: path, required: true, schema: { type: string } }
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Availability map
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date: { type: string, format: date }
+                    day: { $ref: '#/components/schemas/SlotStatus' }
+                    night: { $ref: '#/components/schemas/SlotStatus' }
+
+  /bookings:
+    get:
+      tags: [bookings]
+      summary: List the current user's own bookings (auth required, FR-015)
+      security: [{ sessionAuth: [] }]
+      responses:
+        '200':
+          description: The signed-in user's bookings only
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BookingRequest' }
+        '401': { description: Not signed in (redirect to login, FR-023) }
+    post:
+      tags: [bookings]
+      summary: Create a booking request (auth required, FR-003)
+      security: [{ sessionAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hallId, date, slot]
+              properties:
+                hallId: { type: string }
+                date: { type: string, format: date }
+                slot: { $ref: '#/components/schemas/Slot' }
+      responses:
+        '201':
+          description: Request created with status PENDING (FR-004)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingRequest' }
+        '400': { description: Invalid date (past or >12 months) or slot (FR-008) }
+        '401': { description: Not signed in (FR-003) }
+        '409':
+          description: >
+            Slot already booked (FR-006) or duplicate pending request by this user
+            (FR-007)
+
+  /bookings/{id}/cancel:
+    post:
+      tags: [bookings]
+      summary: Cancel a booking
+      description: >
+        The owning user may cancel their OWN PENDING request (FR-017). Cancelling an
+        APPROVED booking is ADMIN-only (FR-018) and releases the slot (SC-008).
+      security: [{ sessionAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Booking set to CANCELLED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingRequest' }
+        '401': { description: Not signed in }
+        '403':
+          description: >
+            User attempted to cancel another user's request, or a non-admin attempted
+            to cancel an APPROVED booking (FR-018)
+        '404': { description: Not found }
+
+  /admin/bookings/pending:
+    get:
+      tags: [admin]
+      summary: List all pending requests across users (ADMIN only, FR-016)
+      security: [{ sessionAuth: [] }]
+      responses:
+        '200':
+          description: Pending queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BookingRequest' }
+        '403': { description: Not an admin (Principle II) }
+
+  /admin/bookings/{id}/approve:
+    post:
+      tags: [admin]
+      summary: Approve a request (ADMIN only, FR-009/FR-010/FR-011)
+      description: >
+        Transactional. Sets the request APPROVED, locks the slot, and auto-rejects all
+        other PENDING requests for the same hall/date/slot. Fails closed (409) if the
+        slot was concurrently approved (Principle III, SC-003).
+      security: [{ sessionAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingRequest' }
+        '403': { description: Not an admin }
+        '404': { description: Not found }
+        '409': { description: Slot already has an approved booking (no double-booking) }
+
+  /admin/bookings/{id}/reject:
+    post:
+      tags: [admin]
+      summary: Reject a request (ADMIN only, FR-012)
+      security: [{ sessionAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Rejected; slot remains available
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingRequest' }
+        '403': { description: Not an admin }
+        '404': { description: Not found }
+
+  /admin/halls:
+    post:
+      tags: [admin]
+      summary: Create a hall (ADMIN only, FR-019)
+      security: [{ sessionAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HallInput' }
+      responses:
+        '201': { description: Created }
+        '403': { description: Not an admin }
+
+  /admin/halls/{hallId}:
+    put:
+      tags: [admin]
+      summary: Edit a hall (ADMIN only, FR-019)
+      security: [{ sessionAuth: [] }]
+      parameters:
+        - { name: hallId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HallInput' }
+      responses:
+        '200': { description: Updated }
+        '403': { description: Not an admin }
+        '404': { description: Not found }
+    delete:
+      tags: [admin]
+      summary: Delete a hall (ADMIN only, FR-019)
+      security: [{ sessionAuth: [] }]
+      parameters:
+        - { name: hallId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Deleted }
+        '403': { description: Not an admin }
+        '404': { description: Not found }
+        '409': { description: Hall has approved bookings (Edge Case) }
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: NextAuth session cookie; role claim (USER/ADMIN) read server-side.
+
+  schemas:
+    Slot:
+      type: string
+      enum: [DAY, NIGHT]
+    SlotStatus:
+      type: string
+      enum: [AVAILABLE, BOOKED]
+    BookingStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+    Hall:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        capacity: { type: integer }
+        images: { type: array, items: { type: string } }
+        featured: { type: boolean }
+    HallInput:
+      type: object
+      required: [name, description, capacity]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        capacity: { type: integer, minimum: 1 }
+        images: { type: array, items: { type: string } }
+        featured: { type: boolean }
+    BookingRequest:
+      type: object
+      properties:
+        id: { type: string }
+        hallId: { type: string }
+        userId: { type: string }
+        date: { type: string, format: date }
+        slot: { $ref: '#/components/schemas/Slot' }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        createdAt: { type: string, format: date-time }
