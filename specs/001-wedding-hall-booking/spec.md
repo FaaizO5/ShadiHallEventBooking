@@ -8,6 +8,24 @@
 
 **Input**: User description: "Build a wedding hall booking website. Users browse halls and request a hall + date + time slot (DAY or NIGHT). Admin approves or rejects requests. Once a request is approved, that hall/date/slot is locked for all other users and shows as Booked. Pages: home (hero + 6 featured halls), halls listing, hall detail with date+slot picker, about, contact, login, register, and a dashboard (user sees own bookings, admin sees pending requests)."
 
+## Clarifications
+
+### Session 2026-05-30
+
+- Q: How are halls created and managed in the system? → A: Admin manages halls via the
+  dashboard — full create, edit, and delete of halls (name, description, capacity, images,
+  featured flag).
+- Q: What credentials do users register and sign in with? → A: Email + password; email is
+  the unique account identifier.
+- Q: How is a user informed when their request is approved or rejected? → A: In-app status
+  only — the user sees the updated status on their dashboard; no email notifications in
+  this version.
+- Q: Who can cancel an already-approved booking (releasing the locked slot)? → A: Admin
+  only; regular users may cancel only their own pending requests. Cancelling an approved
+  booking releases the slot back to available.
+- Q: How far in advance can a user request a date? → A: Up to 12 months ahead; past dates
+  and dates more than 12 months from today are not selectable.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Request a hall for a date and slot (Priority: P1)
@@ -37,6 +55,8 @@ date + slot, submit the request, and confirm it appears in the user's dashboard 
 4. **Given** an unauthenticated visitor, **When** they attempt to submit a booking
    request, **Then** they are prompted to sign in or register before the request is
    accepted.
+5. **Given** a signed-in user, **When** they open the date picker, **Then** only dates
+   from today through 12 months ahead are selectable.
 
 ---
 
@@ -66,14 +86,16 @@ available.
    automatically rejected so the slot has exactly one approved booking.
 4. **Given** a regular (non-admin) user, **When** they attempt to approve or reject any
    request, **Then** the action is denied.
+5. **Given** an approved booking, **When** the admin cancels it, **Then** its status
+   becomes "Cancelled" and that hall/date/slot returns to available for others.
 
 ---
 
 ### User Story 3 - Register, sign in, and role-based dashboard (Priority: P2)
 
-A new visitor registers an account and signs in. Regular users land on a dashboard showing
-their own bookings and statuses; administrators land on a dashboard showing the pending
-request queue and management actions.
+A new visitor registers an account with email and password and signs in. Regular users
+land on a dashboard showing their own bookings and statuses; administrators land on a
+dashboard showing the pending request queue and management actions.
 
 **Why this priority**: Identity is required to attribute requests and to separate user vs.
 admin capabilities, but the booking and approval logic (US1, US2) defines the product's
@@ -85,15 +107,15 @@ shows the pending queue.
 
 **Acceptance Scenarios**:
 
-1. **Given** a visitor on the register page, **When** they submit valid registration
-   details, **Then** an account is created with the regular "user" role and they can sign
+1. **Given** a visitor on the register page, **When** they submit a valid email and
+   password, **Then** an account is created with the regular "user" role and they can sign
    in.
 2. **Given** a signed-in regular user, **When** they open the dashboard, **Then** they see
    only their own bookings and cannot see other users' requests.
 3. **Given** a signed-in admin, **When** they open the dashboard, **Then** they see the
    pending request queue across all users.
-4. **Given** an invalid or duplicate registration (e.g., an email already in use), **When**
-   they submit, **Then** registration is refused with a clear message.
+4. **Given** an email already in use, **When** a visitor submits it on the register page,
+   **Then** registration is refused with a clear message.
 
 ---
 
@@ -122,17 +144,50 @@ and confirm their content renders.
 
 ---
 
+### User Story 5 - Admin manages halls (Priority: P2)
+
+An administrator uses the dashboard to add new halls, edit existing hall details (name,
+description, capacity, images, featured flag), and delete halls that are no longer offered.
+
+**Why this priority**: Halls are the catalog the whole product depends on; the admin needs
+to maintain it without a developer. It ranks below the core booking + approval loop because
+that loop can be demonstrated with seeded halls.
+
+**Independent Test**: Sign in as admin, create a new hall, confirm it appears in the halls
+listing; edit it and mark it featured, confirm it appears among featured halls; delete a
+hall and confirm it is removed from the listing.
+
+**Acceptance Scenarios**:
+
+1. **Given** a signed-in admin, **When** they create a hall with valid details, **Then**
+   the hall appears in the halls listing and is available for browsing.
+2. **Given** a signed-in admin, **When** they edit a hall's details or featured flag,
+   **Then** the changes are reflected on the listing, detail page, and (if featured) home
+   page.
+3. **Given** a signed-in admin, **When** they delete a hall, **Then** the hall no longer
+   appears to visitors.
+4. **Given** a regular (non-admin) user, **When** they attempt to create, edit, or delete a
+   hall, **Then** the action is denied.
+
+---
+
 ### Edge Cases
 
 - A user selects a date in the past → the system MUST prevent requesting past dates.
+- A user selects a date more than 12 months ahead → the system MUST prevent the request;
+  such dates are not selectable.
 - Two users submit requests for the same free hall/date/slot before any approval → both
   remain pending; approval of one auto-rejects the rest for that slot (US2 scenario 3).
 - A user requests the DAY slot while the NIGHT slot of the same hall/date is booked → the
   DAY request is allowed because DAY and NIGHT are independent slots.
-- An approved booking is later cancelled (by admin) → the slot returns to available and
-  can be requested again.
+- An approved booking is cancelled by an admin → the slot returns to available and can be
+  requested again.
 - A user cancels their own pending request → the request is withdrawn and no longer in the
   queue; the slot remains available.
+- A user attempts to cancel an approved booking → the action is denied (only an admin can
+  cancel an approved booking).
+- An admin attempts to delete a hall that has approved bookings → the system MUST warn and
+  either block deletion or clearly state the effect on existing bookings.
 - A visitor tries to reach the dashboard without signing in → they are redirected to sign
   in.
 
@@ -154,7 +209,8 @@ and confirm their content renders.
   Booked (has an approved booking).
 - **FR-007**: System MUST prevent a user from creating a duplicate pending request for the
   same hall, date, and slot.
-- **FR-008**: System MUST prevent requests for dates in the past.
+- **FR-008**: System MUST allow requests only for dates from today through 12 months ahead;
+  past dates and dates more than 12 months from today MUST NOT be selectable or accepted.
 - **FR-009**: System MUST allow only administrators to approve or reject requests; regular
   users MUST be denied these actions.
 - **FR-010**: System MUST, when an admin approves a request, set it to "Approved" and lock
@@ -164,30 +220,41 @@ and confirm their content renders.
   booking per slot.
 - **FR-012**: System MUST allow an admin to reject a request, setting it to "Rejected" and
   leaving the slot available.
-- **FR-013**: System MUST allow visitors to register an account; newly registered accounts
-  MUST receive the regular "user" role.
-- **FR-014**: System MUST allow registered users and admins to sign in and sign out.
+- **FR-013**: System MUST allow visitors to register an account using an email and password,
+  where email is the unique account identifier; newly registered accounts MUST receive the
+  regular "user" role.
+- **FR-014**: System MUST allow registered users and admins to sign in (with email and
+  password) and sign out.
 - **FR-015**: System MUST show each signed-in user a dashboard listing only their own
-  bookings and current statuses.
+  bookings and current statuses (in-app status is the only notification channel; no emails
+  are sent).
 - **FR-016**: System MUST show admins a dashboard listing pending requests across all users
   with approve/reject actions.
 - **FR-017**: System MUST allow a user to cancel their own pending request, after which the
   slot remains available and the request leaves the pending queue.
-- **FR-018**: System MUST provide a home page containing a hero section and exactly six
+- **FR-018**: System MUST allow an admin to cancel an approved booking, setting it to
+  "Cancelled" and returning that hall/date/slot to available; regular users MUST NOT be
+  able to cancel approved bookings.
+- **FR-019**: System MUST allow an admin to create, edit, and delete halls (name,
+  description, capacity, images, and featured flag) from the dashboard; regular users MUST
+  be denied these actions.
+- **FR-020**: System MUST provide a home page containing a hero section and exactly six
   featured halls.
-- **FR-019**: System MUST provide these pages: home, halls listing, hall detail (with a
+- **FR-021**: System MUST provide these pages: home, halls listing, hall detail (with a
   date + slot picker), about, contact, login, register, and dashboard.
-- **FR-020**: System MUST be usable on mobile screens, with the booking flow fully
+- **FR-022**: System MUST be usable on mobile screens, with the booking flow fully
   completable on a small (phone-width) viewport.
-- **FR-021**: System MUST restrict the dashboard to signed-in users, redirecting
+- **FR-023**: System MUST restrict the dashboard to signed-in users, redirecting
   unauthenticated visitors to sign in.
 
 ### Key Entities *(include if feature involves data)*
 
-- **User**: A person with an account. Has identity credentials and a role of either
-  "user" or "admin". A user owns the booking requests they create.
-- **Hall**: A wedding venue that can be booked. Has descriptive details (e.g., name,
-  description, capacity, images) and may be flagged as featured for the home page.
+- **User**: A person with an account. Identified uniquely by email and authenticated by
+  password. Has a role of either "user" or "admin". A user owns the booking requests they
+  create.
+- **Hall**: A wedding venue that can be booked. Has descriptive details (name, description,
+  capacity, images) and a featured flag controlling appearance on the home page. Created,
+  edited, and deleted by an admin.
 - **Booking Request**: A user's request to reserve a specific hall on a specific date for a
   specific slot. Has a slot value (DAY or NIGHT), a status (Pending, Approved, Rejected, or
   Cancelled), the requesting user, and timestamps. The combination of hall + date + slot
@@ -210,6 +277,8 @@ and confirm their content renders.
 - **SC-006**: An admin can locate and resolve (approve or reject) any pending request from
   the dashboard in under 30 seconds.
 - **SC-007**: The home page displays a hero and exactly six featured halls on first load.
+- **SC-008**: When an admin cancels an approved booking, the released slot becomes
+  requestable by other users 100% of the time.
 
 ## Assumptions
 
@@ -219,10 +288,14 @@ and confirm their content renders.
   scope for this version.
 - When an admin approves a request, all other pending requests for the same hall/date/slot
   are automatically rejected so the slot has a single approved booking.
-- Users may cancel their own pending requests; cancelling an already-approved booking is an
-  admin action.
-- New self-registered accounts are regular users; admin accounts are provisioned separately
-  (e.g., seeded), not via public self-registration.
+- Regular users may cancel only their own pending requests; cancelling an approved booking
+  is an admin-only action that releases the slot.
+- Registration uses email + password with email as the unique identifier. New self-
+  registered accounts are regular users; admin accounts are provisioned separately (e.g.,
+  seeded), not via public self-registration.
+- Notifications are in-app only (dashboard status); no email or other external notifications
+  are sent in this version.
+- The bookable window is today through 12 months ahead.
 - Payment, contracts, and pricing/checkout are out of scope; the system handles
   availability and approval only.
 - The contact page collects an inquiry message; routing/notification of inquiries beyond
