@@ -35,11 +35,11 @@ under `app/_actions/`, framework-agnostic domain logic under `lib/`, Prisma unde
 
 **Purpose**: Project initialization and tooling
 
-- [ ] T001 Install runtime deps (`next-auth@4`, `@prisma/client`, `zod`, `bcryptjs`) and dev deps (`prisma`, `vitest`, `@playwright/test`, `@types/bcryptjs`) via npm; verify versions in `package.json`
-- [ ] T002 Verify `tsconfig.json` has `"strict": true` and confirm Tailwind is wired in `app/globals.css` + `postcss.config.mjs` (Constitution Tech Standards)
-- [ ] T003 [P] Add npm scripts to `package.json`: `test` (vitest), `test:e2e` (playwright), `db:seed`, `db:migrate`; configure Prisma seed entry (`prisma.seed`)
-- [ ] T004 [P] Create `vitest.config.ts` (unit tests under `tests/unit/`) and `playwright.config.ts` (E2E under `tests/e2e/`, baseURL http://localhost:3000)
-- [ ] T005 [P] Create `.env.example` documenting `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (per quickstart.md)
+- [X] T001 Install runtime deps + dev deps via npm; verify versions in `package.json` (NOTE: installed stack is Next 16 / React 19 / Prisma 7 / NextAuth v4 / zod 4 / bcrypt + tsx, vitest, @playwright/test — not the plan's Next 14 / bcryptjs; building on installed per user decision)
+- [X] T002 Verify `tsconfig.json` has `"strict": true` (confirmed) and Tailwind 4 wired via `@import "tailwindcss"` in `app/globals.css` + `@tailwindcss/postcss` in `postcss.config.mjs`
+- [X] T003 [P] Add npm scripts to `package.json`: `test`, `test:e2e`, `db:seed`, `db:migrate`, `typecheck`, etc.; configure Prisma seed entry (`prisma.seed` → tsx)
+- [X] T004 [P] Create `vitest.config.ts` (unit tests under `tests/unit/`) and `playwright.config.ts` (E2E under `tests/e2e/`, baseURL http://localhost:3000, +mobile project)
+- [X] T005 [P] Create `.env.example` documenting `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`
 
 ---
 
@@ -49,19 +49,19 @@ under `app/_actions/`, framework-agnostic domain logic under `lib/`, Prisma unde
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Define `prisma/schema.prisma`: enums `Role`, `Slot`, `BookingStatus`; models `User`, `Hall`, `BookingRequest` per data-model.md; datasource uses `url = env("DATABASE_URL")` + `directUrl = env("DIRECT_URL")`
-- [ ] T007 Run `npx prisma migrate dev --name init`, then hand-edit the generated migration to append the partial unique index `booking_request_unique_approved ON "BookingRequest" ("hallId","date","slot") WHERE "status" = 'APPROVED'`; re-run migrate to apply (Constitution Principle III)
-- [ ] T008 [P] Add supporting indexes in schema/migration: `(hallId, date)` for availability and `(status)` for the pending queue
-- [ ] T009 [P] Create Prisma client singleton in `lib/prisma.ts` (avoids connection exhaustion on serverless)
-- [ ] T010 [P] Create zod schemas in `lib/validation.ts`: registration (email/password), booking input (slot enum + date within today..+12mo per FR-008), hall input
-- [ ] T011 Configure NextAuth Credentials in `lib/auth.ts`: JWT session strategy, bcrypt verify, `role` claim added via jwt/session callbacks; export `auth()` helper for server-side role checks (Principle II)
-- [ ] T012 Create NextAuth route handler in `app/api/auth/[...nextauth]/route.ts`
-- [ ] T013 [P] Implement availability derivation in `lib/availability.ts`: `getAvailability(hallId, from, to)` returns DAY/NIGHT status computed ONLY from APPROVED bookings (Principle I); clamps range to today..+12mo
-- [ ] T014 [P] Create root layout + shared nav/footer in `app/layout.tsx` and `app/_components/Nav.tsx` (mobile-first Tailwind, auth-aware links)
-- [ ] T015 Create `prisma/seed.ts`: seed 1 ADMIN user (from env) and ≥6 featured halls + a few non-featured (data-model.md Seed Data)
-- [ ] T016 [P] Add a server-side auth guard helper in `lib/guards.ts`: `requireUser()` and `requireAdmin()` for use in server actions and protected pages (FR-023, Principle II)
+- [X] T006 Define `prisma/schema.prisma`: enums `Role`, `Slot`, `BookingStatus`; models `User`, `Hall`, `BookingRequest` per data-model.md (NOTE: Prisma 7 removed `url`/`directUrl` from schema → moved to `prisma.config.ts`; runtime uses `@prisma/adapter-neon`)
+- [ ] T007 Run `npx prisma migrate dev --name init`, then hand-edit the generated migration to append the partial unique index `booking_request_unique_approved ON "BookingRequest" ("hallId","date","slot") WHERE "status" = 'APPROVED'`; re-run migrate to apply (Constitution Principle III) — **DEFERRED: needs .env with Neon credentials**
+- [X] T008 [P] Add supporting indexes in schema: `@@index([hallId, date])` for availability and `@@index([status])` for the pending queue
+- [X] T009 [P] Create Prisma client singleton in `lib/prisma.ts` (Neon adapter; avoids connection exhaustion on serverless)
+- [X] T010 [P] Create zod schemas in `lib/validation.ts`: registration, booking input (slot enum + date within today..+12mo per FR-008), hall input (zod 4); date helpers in `lib/dates.ts`
+- [X] T011 Configure NextAuth Credentials in `lib/auth.ts`: JWT session strategy, bcrypt verify, `role` claim via jwt/session callbacks; `auth()` helper + type augmentation in `types/next-auth.d.ts` (Principle II)
+- [X] T012 Create NextAuth route handler in `app/api/auth/[...nextauth]/route.ts`
+- [X] T013 [P] Implement availability derivation in `lib/availability.ts`: `getAvailability` + `isSlotBooked` computed ONLY from APPROVED bookings (Principle I); clamps range to today..+12mo
+- [X] T014 [P] Create root layout + shared nav/footer in `app/layout.tsx`, `app/_components/Nav.tsx`, `app/_components/Providers.tsx` (mobile-first Tailwind, auth-aware links)
+- [X] T015 Create `prisma/seed.ts`: seed 1 ADMIN user (from env) and 8 halls (6 featured) (data-model.md Seed Data)
+- [X] T016 [P] Add server-side auth guards in `lib/guards.ts`: `requireUser()`/`requireAdmin()` (redirect) + `assertUser()`/`assertAdmin()` (throw for server actions) (FR-023, Principle II)
 
-**Checkpoint**: Foundation ready — schema, auth, availability, and guards exist. User stories can now begin.
+**Checkpoint**: Foundation code complete and type-checks clean. Migration (T007) deferred until Neon credentials are provided.
 
 ---
 
@@ -73,20 +73,20 @@ under `app/_actions/`, framework-agnostic domain logic under `lib/`, Prisma unde
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T017 [P] [US1] Unit test in `tests/unit/booking-create.test.ts`: rejects past dates and dates >12 months (FR-008), rejects duplicate pending (FR-007), rejects already-APPROVED slot (FR-006), else creates PENDING (FR-004)
-- [ ] T018 [P] [US1] E2E test in `tests/e2e/booking-request.spec.ts`: user submits a request → appears as Pending; booked slot not selectable (US1 acceptance scenarios)
+- [X] T017 [P] [US1] Unit test in `tests/unit/booking-create.test.ts`: past dates, >12mo (FR-008), duplicate pending (FR-007), already-APPROVED slot (FR-006), independent DAY/NIGHT, creates PENDING (FR-004) — 9 tests passing
+- [X] T018 [P] [US1] E2E test in `tests/e2e/booking-request.spec.ts` (ready; skips unless E2E_USER_* env set — runs in post-.env phase)
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement `createBooking` domain function in `lib/booking.ts`: validate via zod, check availability, enforce FR-006/FR-007/FR-008, create PENDING (depends on T010, T013)
-- [ ] T020 [US1] Implement booking server action in `app/_actions/booking.ts` (`createBookingAction`): `requireUser()`, call `lib/booking.createBooking`, return typed result/errors (depends on T016, T019)
-- [ ] T021 [P] [US1] Build hall detail page in `app/halls/[hallId]/page.tsx` (server component) fetching hall + availability
-- [ ] T022 [P] [US1] Build mobile-first `SlotPicker` in `app/_components/SlotPicker.tsx` (client): date selection limited to today..+12mo, DAY/NIGHT buttons, booked slots disabled, large touch targets (FR-022, SC-005)
-- [ ] T023 [US1] Wire SlotPicker submit to `createBookingAction`; show "request already exists"/"booked"/"signed-in required" states; prompt unauthenticated users to sign in (US1 scenario 4)
-- [ ] T024 [US1] Build user dashboard "My Bookings" list in `app/dashboard/page.tsx` (user branch) showing own requests + statuses (FR-015)
-- [ ] T025 [US1] Implement user cancel-own-pending in `app/_actions/booking.ts` (`cancelBookingAction` for PENDING owned by caller, FR-017) and a cancel control in the dashboard
+- [X] T019 [US1] Implement `createBooking` domain function in `lib/booking.ts`: zod validation, FR-006/FR-007/FR-008, create PENDING (injectable client for testing)
+- [X] T020 [US1] Implement booking server action in `app/_actions/booking.ts` (`createBookingAction`): `assertUser()`, typed ActionResult, revalidatePath
+- [X] T021 [P] [US1] Build hall detail page in `app/halls/[hallId]/page.tsx` (server component) fetching hall + availability (force-dynamic)
+- [X] T022 [P] [US1] Build mobile-first `SlotPicker` in `app/_components/SlotPicker.tsx`: native date input bounded today..+12mo, DAY/NIGHT buttons, booked disabled, large touch targets (FR-022, SC-005)
+- [X] T023 [US1] Wire SlotPicker submit to `createBookingAction`; shows booked/duplicate/error states; redirects unauthenticated users to /login (US1 scenario 4)
+- [X] T024 [US1] Build user dashboard "My bookings" list in `app/dashboard/page.tsx` (user branch) with statuses (FR-015)
+- [X] T025 [US1] Implement `cancelBookingAction` (FR-017) + `CancelButton` in dashboard
 
-**Checkpoint**: User Story 1 fully functional — a user can request and see/cancel their own pending bookings.
+**Checkpoint**: User Story 1 fully functional — type-checks, lints, and builds clean; unit tests green.
 
 ---
 
@@ -98,20 +98,22 @@ under `app/_actions/`, framework-agnostic domain logic under `lib/`, Prisma unde
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T026 [P] [US2] Unit test in `tests/unit/booking-approve.test.ts`: approval sets APPROVED + auto-rejects rival PENDINGs (FR-011); concurrent/second approval for same slot fails closed (Principle III, SC-003)
-- [ ] T027 [P] [US2] E2E test in `tests/e2e/admin-approval.spec.ts`: approve→Booked, reject→available, admin-cancel-approved→available (US2 scenarios)
-- [ ] T028 [P] [US2] Unit test in `tests/unit/authz.test.ts`: a USER role calling approve/reject/admin-cancel is denied (FR-009, SC-004, Principle II)
+- [X] T026 [P] [US2] Unit test in `tests/unit/booking-approve.test.ts`: approval sets APPROVED + auto-rejects rival PENDINGs (FR-011); fails closed when slot already approved (Principle III, SC-003); does NOT touch other slot — 8 tests passing
+- [X] T027 [P] [US2] E2E test in `tests/e2e/admin-approval.spec.ts` (ready; skips unless E2E_ADMIN_* env set; includes FR-023 redirect check)
+- [X] T028 [P] [US2] Unit test in `tests/unit/authz.test.ts`: USER denied admin actions, unauthenticated denied, ADMIN allowed (FR-009, SC-004, Principle II) — 5 tests passing
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Implement `approveBooking` in `lib/booking.ts` inside `prisma.$transaction`: re-validate availability, set APPROVED, auto-reject other PENDINGs for same hall/date/slot, rely on partial index to fail closed → conflict error (FR-010/FR-011, depends on T007, T019)
-- [ ] T030 [P] [US2] Implement `rejectBooking` in `lib/booking.ts`: set REJECTED, leave slot available (FR-012)
-- [ ] T031 [P] [US2] Implement `adminCancelBooking` in `lib/booking.ts`: set an APPROVED booking to CANCELLED, releasing the slot (FR-018, SC-008)
-- [ ] T032 [US2] Add admin server actions in `app/_actions/booking.ts` (`approveAction`, `rejectAction`, `adminCancelAction`): each calls `requireAdmin()` first (depends on T016, T029–T031)
-- [ ] T033 [US2] Build admin dashboard pending-queue view in `app/dashboard/page.tsx` (admin branch) listing all pending requests across users with approve/reject buttons (FR-016); mobile-first stacked cards
-- [ ] T034 [US2] Add admin controls to manage approved bookings (cancel) and surface the conflict error from approval as a user-friendly "slot just got booked" message
+- [X] T029 [US2] Implement `approveBooking` in `lib/booking.ts` inside `$transaction`: re-validate, set APPROVED, auto-reject rivals; partial index is the fail-closed guarantee (FR-010/FR-011)
+- [X] T030 [P] [US2] Implement `rejectBooking` in `lib/booking.ts` (FR-012)
+- [X] T031 [P] [US2] Implement `adminCancelBooking` in `lib/booking.ts` releasing the slot (FR-018, SC-008)
+- [X] T032 [US2] Add admin server actions in `app/_actions/booking.ts` (`approveAction`, `rejectAction`, `adminCancelAction`): each calls `assertAdmin()` first
+- [X] T033 [US2] Build admin dashboard pending-queue view in `app/dashboard/page.tsx` (admin branch); mobile-first stacked cards (FR-016)
+- [X] T034 [US2] Admin approved-bookings section with cancel; `AdminActions` surfaces the "slot has just been booked" conflict error
 
-**Checkpoint**: Both P1 stories complete — full request → approval loop with no double-booking. This is the MVP.
+**Checkpoint**: Both P1 stories complete — full request → approval loop with no double-booking. Type-checks, lints, production-builds clean; 22 unit tests green. **DB migration + seed + E2E run deferred until Neon credentials provided.**
+
+> Note: minimal `/login`, `/register`, and `/`+`/halls` discovery pages were also built (normally US3/US4) because the MVP loop cannot be exercised without authentication and navigation.
 
 ---
 

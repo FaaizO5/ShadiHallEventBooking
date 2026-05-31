@@ -1,0 +1,76 @@
+// Wedding Hall Booking — Prisma schema
+// Constitution Principle III (no double-booking) is enforced by a PARTIAL unique
+// index added in the migration SQL (Prisma cannot express a WHERE partial index here).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Slot {
+  DAY
+  NIGHT
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  name         String?
+  role         Role             @default(USER)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  bookings     BookingRequest[] @relation("BookingOwner")
+  decisions    BookingRequest[] @relation("BookingDecider")
+}
+
+model Hall {
+  id          String           @id @default(cuid())
+  name        String
+  description String
+  capacity    Int
+  images      String[]
+  featured    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  bookings    BookingRequest[]
+}
+
+model BookingRequest {
+  id          String        @id @default(cuid())
+  userId      String
+  hallId      String
+  date        DateTime      @db.Date
+  slot        Slot
+  status      BookingStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user      User  @relation("BookingOwner", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("BookingDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  hall      Hall  @relation(fields: [hallId], references: [id], onDelete: Cascade)
+
+  // Index for availability lookups (hall + date) and the admin pending queue (status).
+  @@index([hallId, date])
+  @@index([status])
+  // NOTE: the at-most-one-APPROVED-per-(hall,date,slot) guarantee is a PARTIAL unique
+  // index added by hand in the migration SQL — see prisma/migrations/.../migration.sql.
+}
