@@ -3,8 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Sun, Moon, Lock, CheckCircle2, CalendarDays } from "lucide-react";
 import { createBookingAction } from "@/app/_actions/booking";
 import type { DayAvailability } from "@/lib/availability";
+import Button from "./Button";
 
 type Slot = "DAY" | "NIGHT";
 
@@ -52,8 +54,14 @@ export default function SlotPicker({ hallId, availability, minDate, maxDate }: P
     });
   }
 
-  // Render helper (not a component) for a slot button, to keep state stable.
-  const renderSlot = (value: Slot, label: string, slotStatus: string) => {
+  // Render helper (not a component) for a slot card, to keep state stable.
+  const renderSlot = (
+    value: Slot,
+    label: string,
+    hint: string,
+    Icon: typeof Sun,
+    slotStatus: string,
+  ) => {
     const booked = slotStatus === "BOOKED";
     const selected = slot === value;
     return (
@@ -61,67 +69,113 @@ export default function SlotPicker({ hallId, availability, minDate, maxDate }: P
         type="button"
         disabled={booked}
         onClick={() => setSlot(value)}
+        aria-pressed={selected}
         className={[
-          "flex-1 rounded-lg border px-4 py-4 text-center text-base font-medium transition",
+          "group relative flex-1 overflow-hidden rounded-xl border p-4 text-left transition-all duration-300",
           booked
-            ? "cursor-not-allowed border-black/10 bg-black/5 text-black/30"
+            ? "cursor-not-allowed border-charcoal/10 bg-booked-bg"
             : selected
-              ? "border-black bg-black text-white"
-              : "border-black/20 bg-white hover:border-black",
+              ? "border-bordeaux bg-bordeaux text-ivory shadow-[var(--shadow-soft)]"
+              : "border-charcoal/15 bg-white hover:-translate-y-0.5 hover:border-gold hover:shadow-[var(--shadow-soft)]",
         ].join(" ")}
       >
-        {label}
-        <span className="mt-1 block text-xs font-normal">
-          {booked ? "Booked" : "Available"}
-        </span>
+        <div className="flex items-center justify-between">
+          <Icon
+            className={[
+              "h-5 w-5 transition-colors",
+              booked ? "text-booked" : selected ? "text-gold-soft" : "text-gold-deep",
+            ].join(" ")}
+            aria-hidden
+          />
+          {booked ? (
+            <Lock className="h-4 w-4 text-booked" aria-hidden />
+          ) : selected ? (
+            <CheckCircle2 className="h-4 w-4 text-gold-soft" aria-hidden />
+          ) : null}
+        </div>
+        <p
+          className={[
+            "mt-3 font-serif text-lg",
+            booked ? "text-booked" : selected ? "text-ivory" : "text-charcoal",
+          ].join(" ")}
+        >
+          {label}
+        </p>
+        <p
+          className={[
+            "text-xs",
+            booked ? "text-booked" : selected ? "text-ivory/70" : "text-charcoal-soft",
+          ].join(" ")}
+        >
+          {booked ? "Already booked" : hint}
+        </p>
       </button>
     );
   };
 
   return (
-    <div className="rounded-xl border border-black/10 p-4">
-      <h2 className="text-lg font-semibold">Request a date</h2>
-
-      <label className="mt-4 block text-sm font-medium">
-        Date
-        <input
-          type="date"
-          value={date}
-          min={minDate}
-          max={maxDate}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setSlot(null);
-            setMessage(null);
-          }}
-          className="mt-1 block w-full rounded-lg border border-black/20 px-3 py-3 text-base"
-        />
-      </label>
-
-      <div className="mt-4 flex gap-3">
-        {renderSlot("DAY", "Day", dayStatus)}
-        {renderSlot("NIGHT", "Night", nightStatus)}
+    <div className="overflow-hidden rounded-2xl border border-gold/20 bg-white shadow-[var(--shadow-soft)]">
+      <div className="border-b border-gold/15 bg-cream/60 px-5 py-4">
+        <h2 className="font-serif text-xl text-bordeaux">Request a Date</h2>
+        <p className="mt-0.5 text-xs text-charcoal-soft">
+          Pick a date and slot — we&apos;ll confirm availability.
+        </p>
       </div>
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={!slot || pending}
-        className="mt-4 w-full rounded-lg bg-black px-4 py-3 text-base font-medium text-white disabled:opacity-40"
-      >
-        {pending ? "Submitting…" : status === "authenticated" ? "Request booking" : "Sign in to request"}
-      </button>
+      <div className="p-5">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-charcoal-soft">
+          Date
+          <div className="relative mt-2">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gold-deep" aria-hidden />
+            <input
+              type="date"
+              value={date}
+              min={minDate}
+              max={maxDate}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setSlot(null);
+                setMessage(null);
+              }}
+              className="block w-full rounded-xl border border-charcoal/15 bg-white py-3 pl-10 pr-3 text-base text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30"
+            />
+          </div>
+        </label>
 
-      {message && (
-        <p
-          className={[
-            "mt-3 rounded-lg px-3 py-2 text-sm",
-            message.kind === "ok" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800",
-          ].join(" ")}
-        >
-          {message.text}
+        <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-charcoal-soft">
+          Choose a slot
         </p>
-      )}
+        <div className="mt-2 flex gap-3">
+          {renderSlot("DAY", "Day", "Morning – afternoon", Sun, dayStatus)}
+          {renderSlot("NIGHT", "Night", "Evening – late", Moon, nightStatus)}
+        </div>
+
+        <Button
+          size="lg"
+          className="mt-6 w-full"
+          onClick={submit}
+          disabled={!slot || pending}
+        >
+          {pending
+            ? "Submitting…"
+            : status === "authenticated"
+              ? "Request Booking"
+              : "Sign in to Request"}
+        </Button>
+
+        {message && (
+          <p
+            className={[
+              "mt-4 rounded-xl px-4 py-3 text-sm",
+              message.kind === "ok"
+                ? "bg-available-bg text-available"
+                : "bg-bordeaux/10 text-bordeaux",
+            ].join(" ")}
+          >
+            {message.text}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

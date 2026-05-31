@@ -4,6 +4,12 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Button from "@/app/_components/Button";
+
+const inputCls =
+  "mt-1.5 block w-full rounded-xl border border-charcoal/15 bg-white px-4 py-3 text-base " +
+  "text-charcoal outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30 " +
+  "placeholder:text-charcoal-soft/50";
 
 function LoginForm() {
   const router = useRouter();
@@ -29,43 +35,60 @@ function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto mt-12 max-w-sm px-4">
-      <h1 className="text-2xl font-semibold">Sign in</h1>
-      <label className="mt-6 block text-sm font-medium">
-        Email
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-black/20 px-3 py-3 text-base"
-        />
-      </label>
-      <label className="mt-4 block text-sm font-medium">
-        Password
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-black/20 px-3 py-3 text-base"
-        />
-      </label>
-      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-6 w-full rounded-lg bg-black px-4 py-3 text-base font-medium text-white disabled:opacity-40"
-      >
-        {pending ? "Signing in…" : "Sign in"}
-      </button>
-      <p className="mt-4 text-sm text-black/60">
-        No account?{" "}
-        <Link href="/register" className="underline">
-          Register
-        </Link>
-      </p>
-    </form>
+    <div className="flex min-h-screen items-center justify-center px-4 pb-16 pt-28">
+      <div className="w-full max-w-md">
+        <div className="text-center">
+          <p className="eyebrow">Welcome Back</p>
+          <h1 className="mt-3 font-serif text-3xl text-bordeaux sm:text-4xl">Sign In</h1>
+          <div className="hairline mx-auto mt-5 max-w-[80px]" />
+        </div>
+
+        <form
+          onSubmit={onSubmit}
+          className="mt-8 rounded-2xl border border-gold/20 bg-white p-7 shadow-[var(--shadow-soft)]"
+        >
+          <label className="block text-sm font-medium text-charcoal">
+            Email
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className={inputCls}
+            />
+          </label>
+          <label className="mt-4 block text-sm font-medium text-charcoal">
+            Password
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+          </label>
+
+          {error && (
+            <p className="mt-4 rounded-xl bg-bordeaux/10 px-4 py-2.5 text-sm text-bordeaux">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" size="lg" disabled={pending} className="mt-6 w-full">
+            {pending ? "Signing in…" : "Sign In"}
+          </Button>
+
+          <p className="mt-5 text-center text-sm text-charcoal-soft">
+            No account?{" "}
+            <Link href="/register" className="font-medium text-bordeaux underline decoration-gold/50 underline-offset-2 hover:decoration-gold">
+              Create one
+            </Link>
+          </p>
+        </form>
+      </div>
+    </div>
   );
 }
 

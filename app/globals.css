@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------ *
+ * Shaadi Hall Booking — design system (Tailwind v4 CSS-first theme)
+ * Palette: deep bordeaux primary, champagne gold accent, warm ivory
+ * grounds, charcoal text. Gold is used sparingly, for accents only.
+ * Reusable utilities are generated from these tokens, e.g.
+ *   bg-bordeaux  text-gold  bg-ivory  border-gold/30  font-serif
+ * ------------------------------------------------------------------ */
+@theme {
+  /* Brand */
+  --color-bordeaux: #6e1423;
+  --color-bordeaux-deep: #4a0d17;
+  --color-bordeaux-soft: #8a2433;
+  --color-gold: #c9a227;
+  --color-gold-soft: #e4cf95;
+  --color-gold-deep: #a8851a;
+
+  /* Grounds & ink */
+  --color-ivory: #fbf7f0;
+  --color-cream: #f3e9da;
+  --color-charcoal: #2a2a2a;
+  --color-charcoal-soft: #5b5550;
+
+  /* Availability / status accents (kept muted to stay on-palette) */
+  --color-available: #2f7a52;
+  --color-available-bg: #e7f1ea;
+  --color-booked: #8a857e;
+  --color-booked-bg: #ece8e1;
+
+  /* Typography — wired to next/font CSS variables in layout.tsx */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, "Times New Roman", serif;
+
+  /* Soft, premium elevation */
+  --shadow-soft: 0 10px 30px -12px rgb(74 13 23 / 0.18);
+  --shadow-lift: 0 22px 48px -20px rgb(74 13 23 / 0.28);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-ivory);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings default to the editorial serif unless overridden. */
+h1, h2, h3, h4, .font-serif {
+  font-family: var(--font-serif);
+}
+
+::selection {
+  background-color: var(--color-gold);
+  color: var(--color-bordeaux-deep);
+}
+
+/* Thin champagne-gold rule used as an editorial divider. */
+.hairline {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-gold) 50%,
+    transparent
+  );
+}
+
+/* Small uppercase eyebrow label that sits above section headings. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-gold-deep);
 }
